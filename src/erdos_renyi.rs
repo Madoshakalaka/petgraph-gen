@@ -2,8 +2,7 @@ use crate::common::empty_graph_with_capacity;
 use crate::complete_graph;
 use petgraph::graph::{IndexType, NodeIndex};
 use petgraph::{EdgeType, Graph};
-use rand::distributions::Distribution;
-use rand::distributions::{Bernoulli, Uniform};
+use rand::distr::{Bernoulli, Distribution as _, Uniform};
 use rand::Rng;
 use rustc_hash::FxHashSet;
 use std::mem::swap;
@@ -15,7 +14,7 @@ fn dense_random_gnm_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
 ) -> Graph<(), (), Ty, Ix> {
     let mut graph = empty_graph_with_capacity(n, n, m);
 
-    let uniform_distribution = Uniform::new(0, m);
+    let uniform_distribution = Uniform::new(0, m).unwrap();
     let mut edges = Vec::with_capacity(m);
 
     let mut edge_count = 0;
@@ -24,14 +23,14 @@ fn dense_random_gnm_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
             edge_count += 1;
             if edge_count <= m {
                 edges.push((i, j));
-            } else if rng.gen_range(0..edge_count) < m {
+            } else if rng.random_range(0..edge_count) < m {
                 edges[uniform_distribution.sample(rng)] = (i, j);
             }
             if Ty::is_directed() {
                 edge_count += 1;
                 if edge_count <= m {
                     edges.push((j, i));
-                } else if rng.gen_range(0..edge_count) < m {
+                } else if rng.random_range(0..edge_count) < m {
                     edges[uniform_distribution.sample(rng)] = (j, i);
                 }
             }
@@ -50,7 +49,7 @@ fn sparse_random_gnm_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
 ) -> Graph<(), (), Ty, Ix> {
     let mut graph = empty_graph_with_capacity(n, n, m);
 
-    let uniform_distribution = Uniform::new(0, n);
+    let uniform_distribution = Uniform::new(0, n).unwrap();
     let mut edges = FxHashSet::default();
     while edges.len() < m {
         let mut source = uniform_distribution.sample(rng);
@@ -75,12 +74,10 @@ fn sparse_random_gnm_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
 ///
 /// # Examples
 /// ```
-/// use petgraph_gen::random_gnm_graph;
+/// use petgraph_gen::{random_gnm_graph , rand};
 /// use petgraph::graph::{DiGraph, UnGraph};
-/// use rand::SeedableRng;
-/// use rand::rngs::SmallRng;
 ///
-/// let mut rng = SmallRng::from_entropy();
+/// let mut rng = rand::rng();
 /// let undirected_graph: UnGraph<(), ()> = random_gnm_graph(&mut rng, 10, 20);
 /// assert_eq!(undirected_graph.node_count(), 10);
 /// assert_eq!(undirected_graph.edge_count(), 20);
@@ -124,18 +121,17 @@ pub fn random_gnm_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
 ///
 /// # Examples
 /// ```
-/// use petgraph_gen::random_gnp_graph;
+/// use petgraph_gen::{random_gnp_graph, rand::SeedableRng};
 /// use petgraph::graph::{DiGraph, UnGraph};
-/// use rand::SeedableRng;
 ///
 /// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let undirected_graph: UnGraph<(), ()> = random_gnp_graph(&mut rng, 10, 0.3);
 /// assert_eq!(undirected_graph.node_count(), 10);
-/// assert_eq!(undirected_graph.edge_count(), 15); // out of 45 possible edges
+/// assert_eq!(undirected_graph.edge_count(), 11); // out of 45 possible edges
 ///
 /// let directed_graph: DiGraph<(), ()> = random_gnp_graph(&mut rng, 10, 0.5);
 /// assert_eq!(directed_graph.node_count(), 10);
-/// assert_eq!(directed_graph.edge_count(), 40); // out of 90 possible edges
+/// assert_eq!(directed_graph.edge_count(), 42); // out of 90 possible edges
 /// ```
 pub fn random_gnp_graph<R: Rng + ?Sized, Ty: EdgeType, Ix: IndexType>(
     rng: &mut R,
@@ -177,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_directed_random_gnm_graph_does_not_have_self_loops() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: DiGraph<(), ()> = random_gnm_graph(&mut rng, 10, 89);
         for edge in graph.raw_edges() {
             assert_ne!(edge.source(), edge.target()); // no self-loops
@@ -186,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_undirected_random_gnm_graph_does_not_have_self_loops() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: UnGraph<(), ()> = random_gnm_graph(&mut rng, 10, 44);
         for edge in graph.raw_edges() {
             assert_ne!(edge.source(), edge.target()); // no self-loops
@@ -195,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_directed_random_gnm_graph_does_not_have_duplicate_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: DiGraph<(), ()> = random_gnm_graph(&mut rng, 10, 89);
         let mut unique_edges = HashSet::new();
         for edge in graph.raw_edges() {
@@ -207,7 +203,7 @@ mod tests {
 
     #[test]
     fn test_undirected_random_gnm_graph_does_not_have_duplicate_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: UnGraph<(), ()> = random_gnm_graph(&mut rng, 10, 44);
         let mut unique_edges = HashSet::new();
         for edge in graph.raw_edges() {
@@ -220,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_undirected_random_gnm_graph_with_zero_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: UnGraph<(), ()> = random_gnm_graph(&mut rng, 100, 0);
         assert_eq!(graph.node_count(), 100);
         assert_eq!(graph.edge_count(), 0);
@@ -228,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_directed_random_gnm_graph_with_zero_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: DiGraph<(), ()> = random_gnm_graph(&mut rng, 100, 0);
         assert_eq!(graph.node_count(), 100);
         assert_eq!(graph.edge_count(), 0);
@@ -236,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_undirected_random_gnm_graph_with_maximum_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: UnGraph<(), ()> = random_gnm_graph(&mut rng, 10, 45);
         assert_eq!(graph.node_count(), 10);
         assert_eq!(graph.edge_count(), 45);
@@ -244,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_directed_random_gnm_graph_with_maximum_edges() {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
         let graph: DiGraph<(), ()> = random_gnm_graph(&mut rng, 10, 90);
         assert_eq!(graph.node_count(), 10);
         assert_eq!(graph.edge_count(), 90);
@@ -252,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_empty_undirected_random_gnp_graph() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let graph: UnGraph<(), ()> = random_gnp_graph(&mut rng, 10, 0.0);
         assert_eq!(graph.node_count(), 10);
         assert_eq!(graph.edge_count(), 0);
@@ -260,7 +256,7 @@ mod tests {
 
     #[test]
     fn test_complete_undirected_random_gnp_graph() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let graph: UnGraph<(), ()> = random_gnp_graph(&mut rng, 10, 1.0);
         assert_eq!(graph.node_count(), 10);
         assert_eq!(graph.edge_count(), 45);
@@ -268,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_complete_directed_random_gnp_graph() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let graph: DiGraph<(), ()> = random_gnp_graph(&mut rng, 10, 1.0);
         assert_eq!(graph.node_count(), 10);
         assert_eq!(graph.edge_count(), 90);
@@ -285,7 +281,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "m must be less than or equal to 90")]
     fn test_random_gnm_graph_panic() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let _: Graph<(), ()> = random_gnm_graph(&mut rng, 10, 91);
     }
 }

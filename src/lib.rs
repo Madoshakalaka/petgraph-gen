@@ -6,6 +6,7 @@ mod classic;
 mod common;
 mod erdos_renyi;
 
+pub use rand;
 pub use self::barabasi_albert::barabasi_albert_graph;
 pub use self::classic::complete_graph;
 pub use self::classic::empty_graph;
